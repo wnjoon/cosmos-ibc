@@ -1,19 +1,86 @@
-# IBC의 보안 모델 분석
+# IBC 프로토콜 보안 모델 분석
 
-IBC(Inter-Blockchain Communication) 프로토콜은 서로 다른 블록체인 간의 안전한 통신을 가능하게 하는 표준화된 프로토콜이다.  
-본 문서에서는 서로 다른 체인 간 신뢰할 수 있는 통신을 보장하기 위해 IBC에서 사용하는 보안 모델과 CometBFT+PoS 환경에서 발생 가능한 다양한 상황을 기술한다.
+IBC(Inter-Blockchain Communication) 프로토콜은 서로 다른 블록체인 간 안전한 통신을 가능하게 하는 표준화된 프로토콜이다. 본 문서에서는 서로 다른 체인 간 신뢰할 수 있는 통신을 보장하기 위해 IBC에서 사용하는 보안 모델과 CometBFT+PoS 환경에서 발생 가능한 다양한 상황에 대해 기술한다.
 
 <br>
 
 ## IBC 보안 모델
 
-체인 간의 연결에서 신뢰를 유지하기 위한 모델 방법으로, 클라이언트에 저장된 정보와 상대 체인으로부터 전달된 데이터를 머클 증명을 통해 검증하여 안전한 통신이 가능하도록 한다.
+IBC 프로토콜은 서로 다른 두 체인간 안전한 통신을 유지하기 위해 서로가 상대 체인을 신뢰할 수 있는 검증 환경을 제공하기 위해 존재한다. 이를 위해 IBC 프로토콜의 구성 요소 중 하나인 클라이언트를 기반으로 서로 다른 두 체인의 신뢰성을 보장한다. 클라이언트에서 네트워크의 검증 완료를 확인하면, IBC 프로토콜은 연결된 양 쪽 체인을 직접 확인할 필요가 없다. 
 
 <br>
 
 ## 클라이언트
 
-상대 체인의 블록 헤더 정보와 검증자 집합(validator set)을 포함하고 있으며, 이를 지속적으로 확인하여 상대 체인의 신뢰 여부를 검증하기 위해 사용한다. 상대 체인의 모든 상태정보를 포함하지 않기 때문에 자원을 효율적으로 사용한다는 장점이 있다.
+통신하고자 하는 상대 체인의 블록 헤더 정보와 검증자 집합(validator set)을 포함한다. 상대 체인에서 새로운 블록이 생성되었음을 [릴레이어](#릴레이어)가 확인하면, 새로운 블록에 대한 검증자 집합 정보를 통해 클라이언트가 아직도 유효한 상태인지를 검증한다. 모든 클라이언트는 고유의 식별자(Client ID)를 갖는다.
+
+> ### 릴레이어
+> 오프체인 형태로 존재하며, 연결된 양쪽 체인이 서로를 신뢰할 수 있는 다양한 방법을 제공한다. 릴레이어에서 각 체인과 연결된 IBC 모듈로 클라이언트 생성을 요청하고, 정상적으로 생성이 완료되면 클라이언트를 서로 연결하는 Connection을 구성한다. 그리고 Connection 위에 각 체인의 어플리케이션 모듈에서 상대 체인으로 데이터 패킷을 전송할 수 있는 Channel을 생성한다.  
+
+IBC 보안 모델은 클라이언트를 기반으로 동작하기 때문에, Connection과 Channel 모두 Client ID를 기반으로 생성된다. 그리고 클라이언트를 기반으로 각 체인이 연결되기 때문에, Client ID는 IP주소와 같은 역할을 하며 각 체인의 ID는 DNS에 비유되기도 한다.
+
+<br>
+
+## ConsensusState
+
+ConsensusState는 클라이언트의 구성요소 중 하나로, IBC 프로토콜에서 클라이언트가 연결된 상대 체인의 상태를 추적하고 검증하기 위해 사용된다. 
+
+```go
+interface ConsensusState {
+  timestamp: uint64 
+  nextValidatorsHash: []byte
+  commitmentRoot: []byte 
+}
+```
+
+### timestamp
+
+블록이 생성된 시점을 나타내며, UNIX 시간으로 표현된다. 체인간 데이터를 전송할 때, 타임스탬프 값을 기준으로 데이터의 유효성을 판단한다. 
+
+### nextValidatorsHash
+
+다음 블록을 검증할 검증자 집합(validator set)의 해시값을 나타낸다. 클라이언트는 해시값을 통해 다음 블록에서 어떤 검증자들이 참여할지 확인할 수 있기 때문에, 블록체인의 무결성을 유지하고 악의적인 행위가 발생하지 않도록 막을 수 있다.
+
+```go
+interface Header extends TendermintSignedHeader {
+  identifier: string
+  validatorSet: List<Pair<Address, uint64>>
+  trustedHeight: Height
+  trustedValidatorSet: List<Pair<Address, uint64>>
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------
 
 ### IBC의 목적과 클라이언트의 중요성
 
@@ -41,23 +108,18 @@ IBC 프로토콜은 특정 체인에서 발생한 트랜잭션을 다른 체인�
 CreateClient 함수의 실행 과정은 아래와 같다.
 
 ```go
-func (k *Keeper) CreateClient(
-    ctx sdk.Context, 
-    clientType string, 
-    clientState, 
-    consensusState []byte
-) (string, error) {
 
-    // 클라이언트 타입 검증 (ex: Tendermint)
-	if clientType == exported.Localhost {...}
 
-    // 클라이언트 ID 생성
+  // 클라이언트 타입 검증 (ex: Tendermint)
+  if clientType == exported.Localhost {...}
+
+  // 클라이언트 ID 생성
 	clientID := k.GenerateClientIdentifier(ctx, clientType)
 
-    // Client ID에 해당하는 새로운 클라이언트를 관리하기 위한 모듈로, 클라이언트 타입에 따라 결정
+  // Client ID에 해당하는 새로운 클라이언트를 관리하기 위한 모듈로, 클라이언트 타입에 따라 결정
 	clientModule, err := k.Route(ctx, clientID)
 
-    // clientState, consensusState 체인 상태 저장소에 기록
+  // clientState, consensusState 체인 상태 저장소에 기록
 	if err := clientModule.Initialize(ctx, clientID, clientState, consensusState); err != nil {...}
     ...
 }
@@ -70,7 +132,7 @@ func (k *Keeper) CreateClient(
 <br>
 
 Client ID
-- 생성된 클라이언트의 고유 식별자로, 이후 해당 클라이언트를 참조하거나 업데이트할 때 사용
+- 생성된 클라이언트의 고유 식별자로, 이후 해당 클라이언트를 참조하거나 업데이트할 때 사용한다.
 - 체인 ID는 특정 체인을 식별할 때 사용되며, 클라이언트 ID는 IP 주소, 체인 ID는 DNS로 비유된다.
 
 ClientState
@@ -99,17 +161,7 @@ interface ClientState {
 ```
 
 ConsensusState
-```go
-interface ConsensusState {
-  // 상대 체인에서 생성된 블록의 생성시간
-  timestamp: uint64
-
-  nextValidatorsHash: []byte
-  commitmentRoot: []byte 
-}
-```
-- nextValidatorsHash : 다음 블록을 검증할 검증자 집합(validator set)의 해시값
-- commitmentRoot : 검증자 집합을 제외한 트랜잭션, 계정 상태, 스마트 컨트랙트 상태 등 실제 체인에서 발생하는 상태에 대한 해시값
+- 클라이언트에 해당하는 체인의 상태를 나타내며, 머클 증명을 통해 체인의 검증자 집합과 트랜잭션의 유효성을 검증할 때 사용한다.
 
 ### 클라이언트 업데이트
 
@@ -138,7 +190,43 @@ interface Header extends TendermintSignedHeader {
 
 <br>
 
-## 머클 증명
+## 머클 증명(Merkle Proof)
 
-IBC 내에서 머클증명은 실제 체인에서 전송되는 데이터 패킷 뿐 아니라 클라이언트 내부의 데이터를 검증하기 위해 사용된다.
+머클 증명은 블록체인 시스템에서 데이터의 무결성을 확인하기 위한 핵심적인 암호학적 기법이다. IBC 프로토콜에서는 체인 간의 신뢰할 수 있는 데이터 전송을 보장하기 위해 머클 증명을 사용한다. 
 
+### IAVL 트리
+
+IBC에서 머클 증명에 사용되는 머클 트리를 구성하기 위해 사용하는 자료구조로, 내부 노드의 높이차를 1로 보장하며 2 이상 발생할 경우 리밸런싱을 진행하여 최대 O(logn)의 삽입, 탐색, 삭제 연산속도를 보장하는 방식이다. 
+
+- 리프(leaf) 노드 : 머클 트리의 가장 하위에 위치하며, 검증하려는 데이터의 해시값을 저장한다.
+- 형제(aunt) 노드 : 리프 노드와 같은 레벨에 있는 노드로, 좌우 연관된 리프 노드와 결합하여 상위 노드로 해시값을 전파한다.
+- 루트(root) 노드 : 머클 루트라고도 부르며, 머클 트리에 존재하는 모든 트랜잭션이 포함된 상태를 나타내는 최상위 노드를 의미한다.
+
+### 클라이언트와 머클 증명
+
+클라이언트는 ConsensusState를 통해 상대 체인의 상태와 검증자 집합의 유효성을 검증한다.
+
+```go
+interface ConsensusState {
+  timestamp: uint64
+  nextValidatorsHash: []byte
+  commitmentRoot: []byte 
+}
+```
+
+#### commitmentRoot
+
+IBC 프로토콜에서 클라이언트는 상대 체인의 상태를 추적하고 검증하기 위해 CommitmentRoot(머클 루트)를 포함한 상태 정보를 저장하고, 이를 통해 상대 체인에서 전송된 패킷의 무결성을 보장한다.
+
+#### nextValidatorsHash
+
+
+
+
+
+
+<br><br>
+
+## 참고
+
+- [AVL Tree 시뮬레이터](https://cmps-people.ok.ubc.ca/ylucet/DS/AVLtree.html)
