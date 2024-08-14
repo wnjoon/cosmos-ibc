@@ -21,7 +21,7 @@ IBC 보안 모델은 클라이언트를 기반으로 동작하기 때문에, Con
 
 <br>
 
-## 클라이언트를 통한 체인 검증
+## 검증 과정
 
 클라이언트는 2가지 확인을 통해 상대 체인이 유효한 상태인지를 지속적으로 확인한다.
 - 새로운 블록을 커밋한 검증자 집합(validator set)과 확인된 이전 블록을 커밋한 검증자 집합과의 일치여부
@@ -58,7 +58,9 @@ trustedValidatorSet
 
 <br>
 
-검증이 완료되면 클라이언트는 최신 블록의 정보를 기반으로 상대 체인에 대한 상태 정보를 포함하는 ConsensusState를 업데이트한다. 
+### 클라이언트 상태 업데이트
+
+검증이 완료되면 클라이언트는 최신 블록의 정보를 기반으로 상태를 업데이트(UpdateClient))한다. 이 과정에서 상대 체인에 대한 상태 정보를 포함하는 ConsensusState가 갱신된다.
 
 ```go
 interface ConsensusState {
@@ -82,192 +84,61 @@ nextValidatorsHash
 <br>
 
 commitmentRoot
-- 해당 블록에 포함된 트랜잭션 및 상태 변경에 대한 값들을 머클 트리로 구성했을 때의 해시값으로 표현되는 머클 루트값을 의미한다. 수신 체인의 클라이언트는 송신 체인으로부터 전송된 머클 증명에 필요한 값들과 commitmentRoot 값을 비교하여 데이터의 무결성을 확인한다.
+- 해당 블록에 포함된 트랜잭션 및 상태 변경에 대한 값들을 머클 트리로 구성했을 때의 해시값으로 표현되는 머클 루트값을 의미한다. 수신 체인의 클라이언트는 발신 체인으로부터 전송된 머클 증명에 필요한 값들과 commitmentRoot 값을 비교하여 데이터의 무결성을 확인한다.
 
 ### 머클 증명을 통한 트랜잭션 검증
 
+체인 간 전송된 패킷 데이터가 실제로 발신 체인의 상태에 올바르게 기록된 내용인지 확인하기 위해 머클 증명을 사용한다. 패킷 데이터는 체인의 어플리케이션 모듈에서 생성되며, 이 과정에서 발신 체인은 해당 패킷이 블록에 기록되었음을 증명하기 위한 머클 증명(Merkle Proof)을 생성한다.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
--------
-
-### IBC의 목적과 클라이언트의 중요성
-
-IBC 프로토콜은 특정 체인에서 발생한 트랜잭션을 다른 체인으로 안전하게 전송하기 위해 존재한다. 
-
-블록체인이 IBC를 통해 다른 체인으로 데이터를 전송하려고 하는 목적으로 생성된 트랜잭션을 패킷으로 변환하고, 이를 상대 블록체인으로 전달한다는 내용만 관리하기 때문에 체인의 종류 뿐만 아니라 체인 별로 독립적으로 관리되는 트랜잭션은 다루지 않는다.
-
-그러므로 클라이언트가 항상 최신 상태로 유지되고 지속적으로 유효한 정보를 업데이트하고 있다면, 연결된 체인은 신뢰할 수 있다고 판단할 수 있다. 즉 체인간 직접적인 신뢰 관계가 아닌, 클라이언트 간 신뢰에 기반을 둔 구조를 가질 수 있게 된다.
-
-### 클라이언트 생성 과정
-
-서로 다른 두 체인(A, B)과 릴레이어가 존재한다고 가정한다.
-
-> **릴레이어(Relayer)**
-> <br> <br>
-> 별도의 오프체인으로 구성되며, 각 체인은 네트워크에 직접 패킷을 전달하지 않고 릴레이어를 통해 전달한다.
-릴레이어는 클라이언트의 생성을 요청하고, 생성된 클라이언트의 최신 블록 헤더 정보와 검증자 집합을 지속적으로 전달하여 클라이언트의 상태를 항상 최신으로 유지한다.
-
-1. 릴레이어가 A 체인에 B 체인에 대한 클라이언트 생성을 요청한다.
-2. A 체인의 IBC 모듈이 CreateClient 함수를 호출하고 클라이언트를 생성하고 클라이언트 ID를 반환한다.
-3. 생성된 클라이언트(B)는 A 체인의 상태 저장소에 저장된다.
+> #### IAVL 트리 구조
+>
+> IBC에서 머클 증명에 사용되는 머클 트리를 구성하기 위해 사용하는 자료구조로, 내부 노드의 높이차를 1로 보장하며 2 이상 발생할 경우 리밸런싱을 진행하여 최대 O(logn)의 삽입, 탐색, 삭제 연산속도를 보장한다.
+>
+>- 리프(leaf) 노드 : 머클 트리의 가장 하위에 위치하며, 검증하려는 데이터의 해시값을 저장한다.
+>- 형제(aunt) 노드 : 리프 노드와 동일한 레벨에 있는 다른 노드
+>- 루트(root) 노드 : 머클 트리에 존재하는 모든 트랜잭션이 포함된 상태를 나타내는 최상위 노드 (머클 루트)
+> ![IAVL 트리 예시](https://miro.medium.com/v2/resize:fit:4800/format:webp/0*dNKVM51P2334adsu.png)
+>
+> 위의 예시에서 검증하고자 하는 트랜잭션이 L1이라고 가정할 때, L1은 리프 노드가 되며 이중 L1을 제외한 나머지가 형제 노드가 된다. 리프 노드와 형제 노드들은 서로 결합되어 상위 노드를 생성하고, 이러한 과정이 반복되어 최종적으로 루트 노드가 생성된다.
 
 <br>
 
-CreateClient 함수의 실행 과정은 아래와 같다.
+아래 함수는 IBC 프로토콜에서 특정 데이터가 실제로 머클 트리에 포함되어 있는지 확인한다. 
 
 ```go
+func (proof MerkleProof) VerifyMembership(specs []*ics23.ProofSpec, root exported.Root, path exported.Path, value []byte) error {
 
+  // 전달받은 파라미터 유효성 검사
+	if err := proof.validateVerificationArgs(specs, root); err != nil {...}
 
-  // 클라이언트 타입 검증 (ex: Tendermint)
-  if clientType == exported.Localhost {...}
-
-  // 클라이언트 ID 생성
-	clientID := k.GenerateClientIdentifier(ctx, clientType)
-
-  // Client ID에 해당하는 새로운 클라이언트를 관리하기 위한 모듈로, 클라이언트 타입에 따라 결정
-	clientModule, err := k.Route(ctx, clientID)
-
-  // clientState, consensusState 체인 상태 저장소에 기록
-	if err := clientModule.Initialize(ctx, clientID, clientState, consensusState); err != nil {...}
-    ...
+	// MerklePath로 타입 변경 및 경로, spec의 길이 일치 여부 확인
+	mpath, ok := path.(v2.MerklePath)
+	
+  // 검증
+	return verifyChainedMembershipProof(root.GetHash(), specs, proof.Proofs, mpath, value, 0)
 }
 ```
 
-> **상태 저장소(State Storage)**
-> <br> <br>
-> 블록체인에서 각 노드가 블록체인의 상태를 저장하고 관리하는 데이터베이스를 의미하며, IBC 프로토콜이 블록체인 간의 통신을 안전하고 일관되게 유지할 수 있도록 한다. 상태 저장소에는 클라이언트 외에도 connection, channel, packet, consensus state, event, logging 등 다양한 정보들이 저장된다.
+specs([]*ics23.ProofSpec)
+- 머클 트리의 구조와 노드 간 관계를 정의하는 사양으로, 리프 노드의 해시 계산 방식이나 각 노드 간의 해시 결합 방식을 규격으로 작성하고 머클 증명에 사용한다.
+
+root(exported.Root)
+- 머클 트리의 루트 해시값으로, 머클 증명을 통해 계산된 최종 값과 일치하는지 여부를 통해 머클 트리 내 데이터의 존재 여부를 증명한다.
+
+path(exported.Path)
+- 내부에서 MerklePath 타입으로 변경되어, 머클 트리 내에서 데이터가 위치하고 있는 경로를 나타낸다.
+
+value([]byte)
+- 검증하려는 실제 데이터 값으로, 내부에서 해시 값으로 변환된 후 사용된다. 
+
+
+타입 변경 및 유효성 검사가 완료되면 verifyChainedMembershipProof 함수를 통해 머클 검증을 수행한다. 함수 내부는 리프 노드와 형제 노드로부터 값을 계산해서 최종적으로 머클 루트 값과 비교한다.
+
+
 
 <br>
 
-Client ID
-- 생성된 클라이언트의 고유 식별자로, 이후 해당 클라이언트를 참조하거나 업데이트할 때 사용한다.
-- 체인 ID는 특정 체인을 식별할 때 사용되며, 클라이언트 ID는 IP 주소, 체인 ID는 DNS로 비유된다.
+## 참조
 
-ClientState
-
-```go
-// 클라이언트 타입마다 다르며, 아래는 cometBFT 기반의 ClientState
-interface ClientState {
-  chainID: string
-
-  // 검증에 필요한 validator 비율. cometBFT는 2/3으로 정의
-  trustLevel: Rational 
-
-  // 제출된 헤더의 업데이트 가능 시간
-  // 시간 초과시 클라이언트가 만료되며, 복구하려면 별도의 거버넌스 제안 필요
-  trustingPeriod: uint64 
-
-  unbondingPeriod: uint64
-  latestHeight: Height
-  frozenHeight: Maybe<uint64>
-  upgradePath: []string
-
-  // 각 체인별 노드의 위치 및 사용하는 시간대의 불일치로 인하여 발생 가능한 시간 차이 허용 범위
-  maxClockDrift: uint64 
-  proofSpecs: []ProofSpec
-}
-```
-
-ConsensusState
-- 클라이언트에 해당하는 체인의 상태를 나타내며, 머클 증명을 통해 체인의 검증자 집합과 트랜잭션의 유효성을 검증할 때 사용한다.
-
-### 클라이언트 업데이트
-
-두 체인(A, B)가 모두 클라이언트를 생성한 상태로 가정한다.
-
-1. 릴레이어가 A 체인에 클라이언트(B) 업데이트 요청(MsgUpdateClient)을 보낸다.
-2. A 체인의 IBC 모듈에서 UpdateClient 함수를 호출하고 클라이언트(B)를 업데이트 한다.
-3. B 체인의 최신 블록 헤더와 검증자 집합을 통해 클라이언트(B)를 검증한다.
-4. 검증이 성공하면 클라이언트(B)의 변경된 상태가 A 체인의 상태 저장소에 기록된다.
-5. 릴레이어는 클라이언트 업데이트가 정상적으로 완료된 것을 확인하고, 이후 데이터 중계를 계속 진행한다.
-
-MsgUpdateClient는 업데이트 할 체인의 정보를 포함하는 Header가 존재하며, 해당 정보를 가지고 클라이언트를 업데이트 한다. 
-
-```go
-interface Header extends TendermintSignedHeader {
-  identifier: string
-  validatorSet: List<Pair<Address, uint64>>
-  trustedHeight: Height
-  trustedValidatorSet: List<Pair<Address, uint64>>
-}
-```
-- identifier : 클라이언트 식별자
-- validatorSet : 최신 블록을 검증한 검증자 집합
-- trustedHeight : 신뢰할 수 있는 이전 블록의 높이
-- trustedValidatorSet : 신뢰할 수 있는 이전 블록을 검증한 검증자 집합
-
-<br>
-
-## 머클 증명(Merkle Proof)
-
-머클 증명은 블록체인 시스템에서 데이터의 무결성을 확인하기 위한 핵심적인 암호학적 기법이다. IBC 프로토콜에서는 체인 간의 신뢰할 수 있는 데이터 전송을 보장하기 위해 머클 증명을 사용한다. 
-
-### IAVL 트리
-
-IBC에서 머클 증명에 사용되는 머클 트리를 구성하기 위해 사용하는 자료구조로, 내부 노드의 높이차를 1로 보장하며 2 이상 발생할 경우 리밸런싱을 진행하여 최대 O(logn)의 삽입, 탐색, 삭제 연산속도를 보장하는 방식이다. 
-
-- 리프(leaf) 노드 : 머클 트리의 가장 하위에 위치하며, 검증하려는 데이터의 해시값을 저장한다.
-- 형제(aunt) 노드 : 리프 노드와 같은 레벨에 있는 노드로, 좌우 연관된 리프 노드와 결합하여 상위 노드로 해시값을 전파한다.
-- 루트(root) 노드 : 머클 루트라고도 부르며, 머클 트리에 존재하는 모든 트랜잭션이 포함된 상태를 나타내는 최상위 노드를 의미한다.
-
-### 클라이언트와 머클 증명
-
-클라이언트는 ConsensusState를 통해 상대 체인의 상태와 검증자 집합의 유효성을 검증한다.
-
-```go
-interface ConsensusState {
-  timestamp: uint64
-  nextValidatorsHash: []byte
-  commitmentRoot: []byte 
-}
-```
-
-#### commitmentRoot
-
-IBC 프로토콜에서 클라이언트는 상대 체인의 상태를 추적하고 검증하기 위해 CommitmentRoot(머클 루트)를 포함한 상태 정보를 저장하고, 이를 통해 상대 체인에서 전송된 패킷의 무결성을 보장한다.
-
-#### nextValidatorsHash
-
-
-
-
-
-
-<br><br>
-
-## 참고
-
+- [텐더민트 IAVL 트리에 대해서 알아보자](https://medium.com/cosmonauts-in-korea/텐더민트-iavl-트리에-대해서-알아보자-2-b6c48c7a3db0)
 - [AVL Tree 시뮬레이터](https://cmps-people.ok.ubc.ca/ylucet/DS/AVLtree.html)
