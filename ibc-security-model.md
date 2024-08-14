@@ -107,13 +107,10 @@ commitmentRoot
 
 ```go
 func (proof MerkleProof) VerifyMembership(specs []*ics23.ProofSpec, root exported.Root, path exported.Path, value []byte) error {
-
   // 전달받은 파라미터 유효성 검사
 	if err := proof.validateVerificationArgs(specs, root); err != nil {...}
-
 	// MerklePath로 타입 변경 및 경로, spec의 길이 일치 여부 확인
-	mpath, ok := path.(v2.MerklePath)
-	
+	mpath, ok := path.(v2.MerklePath)	
   // 검증
 	return verifyChainedMembershipProof(root.GetHash(), specs, proof.Proofs, mpath, value, 0)
 }
@@ -187,10 +184,3 @@ IBC 프로토콜 준수
 수신 체인에서의 머클 증명 위조
 - 발신 체인에서의 머클 증명이 올바르게 검증되지 않았는데, 수신 체인에서 이를 신뢰할 경우에 발생한다.
 - 올바르지 않은 머클 증명에 해당하는 데이터를 신뢰하지 않도록 설계하는 것으로 해결 가능하다.
-
-<br>
-
-## 참조
-
-- [텐더민트 IAVL 트리에 대해서 알아보자](https://medium.com/cosmonauts-in-korea/텐더민트-iavl-트리에-대해서-알아보자-2-b6c48c7a3db0)
-- [AVL Tree 시뮬레이터](https://cmps-people.ok.ubc.ca/ylucet/DS/AVLtree.html)
