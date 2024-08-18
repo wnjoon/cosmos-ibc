@@ -15,7 +15,7 @@
 
 ## IBC Handshaking
 
-체인 간 서로 데이터를 주고 받기 위해 서로가 상대 체인을 신뢰하는 환경을 구성하는 단계이다. 오프체인으로 별도 구성된 릴레이어(Relayer)는 각 체인에 상대 체인에 대한 클라이언트 생성을 요청한다. 클라이언트가 정상 생성되면 클라이언트를 기반으로 체인끼리 서로 통신할 수 있는 연결 통로인 커넥션(Connection)을 생성하고, 커넥션 위에 기능 프로토콜 단위로 데이터 패킷을 주고 받을 수 있는 채널(Channel)을 생성한다. 
+체인 간 서로 데이터를 주고 받기 위해 서로가 상대 체인을 신뢰하는 환경을 구성하는 단계이다. 오프체인으로 별도 구성된 릴레이어(Relayer)는 각 체인에 상대 체인에 대한 클라이언트 생성을 요청한다. 클라이언트가 정상 생성되면 클라이언트를 기반으로 체인끼리 서로 통신할 수 있는 연결 통로인 커넥션(Connection)을 생성하고, 커넥션 위에 기능 프로토콜 단위로 데이터 패킷을 주고 받을 수 있는 채널(Channel)을 생성한다. 
 
 커넥션과 채널은 TCP 소켓 연결과 같은 handshaking 과정을 통해 만들어지는데, 각각 4번의 확인 과정을 거쳐 4-way handshaking이라고 한다.
 
@@ -54,7 +54,7 @@
 
 1. 체인 A와 체인 B에 대한 모든 식별이 마무리 되면, 체인 B의 연결상태를 OPEN으로 변경하고 커넥션 생성이 마무리된다.
 
-### 채널
+### 채널(Channel)
 
 채널은 두 체인 간 한쌍의 연결 통로를 나타내며, 이를 통해 서로 다른 체인간 데이터 패킷이 이동할 수 있다. 채널은 커넥션을 기반으로 생성되며, 하나의 커넥션 위에 다수의 채널이 생성될 수 있다.
 
@@ -86,6 +86,7 @@
 
 1. 체인 A의 상태를 OPEN으로 변경한다.
 2. 채널 상에서 주고받는 데이터 구조의 일치를 위해, 사용할 어플리케이션 버전을 이 시기에 결정한다.
+
 #### 4. ChanOpenConfirm
 
 1. 체인 B의 상태를 OPEN으로 변경한다.
@@ -94,67 +95,98 @@
 
 ## Token Transfer
 
-IBC 내에서 토큰을 보내는 체인은 소스(source) 체인, 토큰을 받는 체인은 싱크(sink) 체인이라고 한다.
+설명에 앞서, 토큰을 전송하거나 받는 역할에 따라 2가지 종류의 체인으로 구분할 수 있다.
 
-- 소스 체인 : 
-- 토큰을 보내는, 자산이나 데이터의 전송을 시작하는 체인
-- 전송하려는 자산(예: ATOM)을 잠금(escrow)한다. 잠금 상태인 자산은 소스 체인 내에서 더이상 사용되지 않는다.
+소스 체인
+- 자산이나 데이터를 전송하는 체인
+- 전송하고자 하는 자산의 양만큼 소스 체인에서 잠금(escrow)되며, 해당 자산은 해제(unescrow)되기 전까지 소스 체인 내에서 사용되지 않는다.
 
 싱크 체인
-- 토큰을 받는, 소스 체인으로부터 자산이나 데이터를 수신하는 체인
-- 소스 체인으로부터 전송된 토큰을 받아 해당 자산을 발행(mint)하거나 사용자가 접근할 수 있도록 한다.
-- 소스 체인으로부터 전달받은 자산을 검증한 후, 수신자의 계정에 할당한다.
+- 자산이나 데이터를 전송받는 체인
+- 소스 체인으로부터 전송된 토큰의 가치에 해당하는 바우처 토큰을 발행(mint)한다.
+- 발행된 자산이 다시 소스 체인으로 돌아가는 경우, 해당 자산을 소각(burn)한다.
+
+### Token Denomination
+
+IBC 내에서 토큰은 `{Port}/{Channel}/{denom}`으로 표현된다. 해당 의미는 자산(denom)이 어떤 채널(channel)과 포트(port)로 전송되었는지를 나타낸다. 
+
+![Token denomination example](https://tutorials.cosmos.network/resized-images/600/academy/3-ibc/images/sourcetosink.png)
+
+위의 그림과 같은 구조에서 체인 A가 체인 B로 100개의 ATOM을 전송할 경우, 체인 B에서 새롭게 발행되는 토큰은 `ibc/<hash of transfer/channel-40/uatom>`으로 표현된다. 
+
+그렇다면 체인 A에서 체인 C로 자산이 이동되는데, 중간에 체인 B가 존재하는 다중 홉(multi-hop) 구조에서는 어떻게 토큰이 표현될까? 지나가는 통로를 `port/channel-id/...` 식으로 앞에 연결하면 된다. 예를 들어 체인 B와 연결된 체인 C의 채널이 channel-50이라고 가정한다면, 해당 토큰은 최종적으로 `ibc/<hash of transfer/channel-50/transfer/channel-40/uatom>`으로 표현된다.
+
+반대로 전송되었던 토큰을 반대로 전송(반환)하는 구조라면, `port/channel-id/...`로 표현된 토큰의 경로가 하나씩 제거되면 된다. 위의 예시에서 체인 C로 전달되었던 토큰이 다시 체인 A로 전송된 최종 결과는 denom인 uatom이 된다.
 
 ### 전송 절차
 
-소스 체인과 싱크 체인이 서로 토큰을 주고받으려면, 양 체인이 IBC Handshaking을 통해 커넥션과 채널 생성을 완료해야 한다. 기본적으로 채널마다 사용하는 포트는 ICS-20 표준인 transfer를 사용한다.
+ICS-20 토큰의 전송은 크게 5단계로 진행된다.
+1. 소스 체인에서 토큰 전송 트랜잭션 생성
+2. 트랜잭션에 대한 패킷 생성
+3. 싱크체인의 패킷 수신 및 검증
+4. 트랜잭션 처리
+5. 소스 체인의 트랜잭션 완료 처리
 
+#### 1. 소스 체인에서 토큰 전송 트랜잭션 생성
 
+토큰 전송 트랜잭션 생성에 앞서 아래와 같은 전제상황이 포함되어야 한다.
+- 어플리케이션이 동작하는 체인은 cometBFT 기반의 합의 알고리즘을 사용해야 하며, 2/3 이상의 voting power를 갖는 정상적인 검증자 집합이 유지되어야 한다.
+- 어플리케이션은 토큰 전송(ICS-20)에 해당하는 프로토콜을 기반으로 동작해야 한다.
+- 소스 체인과 싱크 체인 모두 상대 체인을 검증하기 위한 클라이언트를 구성하고, 해당 클라이언트로부터 상대 체인의 최신 상태가 지속적으로 업데이트 되어야 한다.
+- 체인 간 커넥션 연결이 완료되어야 한다.
+- 소스 체인과 싱크 체인은 ICS-20 기반 토큰 전송에 해당하는 포트 ID인 transfer로 채널이 연결되어 있어야 한다.
+- 
 
+트랜잭션 생성이 완료되면 소스 체인은 해당 트랜잭션의 상태를 머클 트리에 저장하고 트리의 루트 해시 값인 commitmentRoot를 갱신한다. commitmentRoot는 소스 체인에서 패킷이 정상적으로 전송되었음을 나타내는 증거로 사용된다.
 
-### 경로
+#### 2. 트랜잭션에 대한 패킷 생성
 
-IBC에서 전송되는 토큰은 {Port}/{Channel}/{denom} 형태로, 소스 체인의 어떤 포트와 채널을 통해 토큰이 전송되었는지를 나타낸다. 해당 토큰이 이동하는 경로는 ibc/<hash of {Port}/{Channel}/{denom}> 형태로 표현된다. 
+소스 체인이 생성한 [패킷](https://github.com/cosmos/ibc-go/blob/main/modules/core/04-channel/types/channel.pb.go)은 릴레이어에게 전달된다. 패킷의 내부 구조는 아래와 같다.
 
-예로 체인 A에서 체인 B로 토큰이 전송되었을 때, ibc/<hash of transfer/channel-10/uatom> 형태로 기록된 경로는 아래와 같은 의미를 갖는다.
-- transfer : 체인 A에서 토큰 전송에 사용한 포트(ICS-20 표준)
-- channel-10 : 체인 A에서 토큰 전송에 사용된 채널
-- uatom : 토큰의 denom
+```go
+// Packet defines a type that carries data across different chains through IBC
+type Packet struct {
+	// number corresponds to the order of sends and receives, where a Packet
+	// with an earlier sequence number must be sent and received before a Packet
+	// with a later sequence number.
+	Sequence uint64 `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	// identifies the port on the sending chain.
+	SourcePort string `protobuf:"bytes,2,opt,name=source_port,json=sourcePort,proto3" json:"source_port,omitempty"`
+	// identifies the channel end on the sending chain.
+	SourceChannel string `protobuf:"bytes,3,opt,name=source_channel,json=sourceChannel,proto3" json:"source_channel,omitempty"`
+	// identifies the port on the receiving chain.
+	DestinationPort string `protobuf:"bytes,4,opt,name=destination_port,json=destinationPort,proto3" json:"destination_port,omitempty"`
+	// identifies the channel end on the receiving chain.
+	DestinationChannel string `protobuf:"bytes,5,opt,name=destination_channel,json=destinationChannel,proto3" json:"destination_channel,omitempty"`
+	// actual opaque bytes transferred directly to the application module
+	Data []byte `protobuf:"bytes,6,opt,name=data,proto3" json:"data,omitempty"`
+	// block height after which the packet times out
+	TimeoutHeight types.Height `protobuf:"bytes,7,opt,name=timeout_height,json=timeoutHeight,proto3" json:"timeout_height"`
+	// block timestamp (in nanoseconds) after which the packet times out
+	TimeoutTimestamp uint64 `protobuf:"varint,8,opt,name=timeout_timestamp,json=timeoutTimestamp,proto3" json:"timeout_timestamp,omitempty"`
+}
+```
+- SourcePort : 토큰을 전송하는 애플리케이션의 포트 (transfer)
+- SourceChannel :  패킷 전송에 사용할 채널 (위의 그림에서 channel-2)
+- DestinationPort : 싱크 체인에서 패킷을 수신할 포트 (transfer)
+- DestinationChannel :  싱크 체인에서 패킷을 수신할 채널 (위의 그림에서 channel-40)
+- Data : 실제로 전송되는 토큰과 관련된 정보(수량, 수신자 주소 등)
 
-만약 토큰이 여러 경로를 거쳐서 전송되는 다중 홉(multi-hop) 구조를 갖는 경우, 해당 경로가 앞에 연결되는 구조로 작성된다.
+#### 3. 싱크체인의 패킷 수신 및 검증
 
-예로 체인 A에서 체인 B로, 그리고 체인 B에서 체인 C로 토큰이 전송되었을 때, ibc/<hash of transfer/channel-20/ibc/<hash of transfer/channel-10/uatom>> 형태와 같이 각 초기 경로 앞에 중간에 거쳐간 경로들이 앞에 붙어서 연결되는 구조로 작성된다. 
+릴레이어는 소스 체인에서 생성된 패킷과 해당 트랜잭션의 Merkle Proof를 함께 싱크 체인으로 전달한다. 싱크 체인에 있는 소스 체인에 대한 클라이언트는 Merkle Proof를 통해 해당 패킷이 소스 체인에서 유효하게 생성되었는지, 조작되지 않았는지 등을 검증한다. 검증이 완료된 패킷은 채널을 통해 수신된다. 
 
-전송된 토큰이 다시 반대로 돌아가는(반환)경우, 해당 전송 경로는 삭제되며 최종적으로 전송을 시작한 체인까지 돌아오면 토큰의 denom인 'uatom'만이 남는다.
-<!-- 
-### 토큰 전송 및 반환 시나리오
+#### 4. 트랜잭션 처리
 
-소스 체인에서 싱크 체인으로 자산을 이동하는 것을 전송, 전송된 자산이 반대로 싱크체인에서 소스 체인으로 이동하는 것을 반환이라고 할 때 아래와 같은 순서로 진행될 수 있다. 이 때 체인에서 사용하는 포트는 ICS-20 표준 'transfer'로 하고, 소스 체인은 channel-10, 싱크 체인은 channel-20으로 통신한다고 가정한다. 자산은 uatom을 주고받는다.
+채널을 통해 수신된 패킷을 받은 싱크 체인은, 해당 패킷에 포함된 정보를 기반으로 토큰을 처리한다. 위의 예시처럼 체인 A에서 체인 B로 토큰을 이동하는 경우, 소스 체인(체인 A)에서 전송한 토큰에 해당하는 가치를 지닌 바우처 토큰을 싱크 체인(체인 B)에서 발행(mint)한다. 발행된 토큰은 수신자에게 전달된다.
 
-#### 1. Escrow
-- 소스 체인에서 전송하고자 하는 자산의 양만큼 잠금(escrow) 처리된다.
-- 경로 정보 : 변경되지 않음 
+#### 5. 소스 체인의 트랜잭션 완료 처리
 
-#### 2. Mint
-- 싱크 체인에서 전송된 자산에 해당하는 양만큼 발행(mint)한다.
-- 경로 정보: ibc/<hash of transfer/channel-10/uatom>
+싱크 체인에서 패킷 처리가 완료되면, 해당하는 성공 내역에 대한 commitmentRoot가 업데이트 된다. 싱크 체인은 갱신된 commitmentRoot 값을 소스 체인에 알리기 위한 응답 패킷(Acknowledgement)을 생성한다.
 
-#### 3. Unescrow
-- 자산이 싱크 체인에서 소스 체인으로 돌아오고, 소스 체인은 잠겨있던 자산 중 돌아온 양 만큼을 해제(unescrow)된다.
-- 경로 정보 : 토큰이 원래 전송된 경로로 돌아오기 때문에, 경로 정보는 역순으로 제거된다. 다중 홉의 경우 escrow 시점에 작성된 경로가 삭제되며, 아닌 경우 원래의 denom인 'uatom'이 복원된다.
+릴레이어는 해당 응답 패킷을 소스 체인으로 전달하고, 소스 체인은 전달 받은 패킷과 같이 전송된 Merkle Proof를 사용하여 싱크 체인에서 전달한 내용이 정상적인 내용인지 확인한다. 정상임이 확인되면 전송 요청에 대한 트랜잭션을 최종 완료 상태로 표시한다.
 
-#### 4. Burn
-- 싱크 체인이 발행했던 토큰을 소각(burn)한다.
-- 경로 정보 : 싱크 체인에 등록되었던 경로 정보가 삭제되고, 해당 토큰은 더이상 존재하지 않는다. -->
+<br><br>
 
-### 패킷 전송 흐름도
-
-양 체인간 채널 설정이 완료되면 서로 토큰을 주고받을 수 있다. 
-
-
-
-
-
-
-
-
+## 참고
+- [Inter-Blockchain Communication 구조와 Relayer](https://consensusmymem.tistory.com/47)
