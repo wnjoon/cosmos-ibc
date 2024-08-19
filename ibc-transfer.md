@@ -108,11 +108,11 @@
 
 ### Token Denomination
 
-IBC 내에서 토큰은 `{Port}/{Channel}/{denom}`으로 표현된다. 해당 의미는 자산(denom)이 어떤 채널(channel)과 포트(port)로 전송되었는지를 나타낸다. 
+IBC 내에서 토큰은 `{Port}/{Channel}/{denom}`으로 표현된다. 해당 의미는 자산(denom)이 어떤 채널(channel)과 포트(port)에서 전송되었는지를 나타낸다.  
 
 ![Token denomination example](https://tutorials.cosmos.network/resized-images/600/academy/3-ibc/images/sourcetosink.png)
 
-위의 그림과 같은 구조에서 체인 A가 체인 B로 100개의 ATOM을 전송할 경우, 체인 B에서 새롭게 발행되는 토큰은 `ibc/<hash of transfer/channel-40/uatom>`으로 표현된다. 
+위의 그림과 같은 구조에서 체인 A가 체인 B로 100개의 ATOM을 전송할 경우, 체인 A에서 초기 전송된 토큰은 uatom이고, 체인 B에서 새롭게 발행되는 토큰은 `ibc/<hash of transfer/channel-40/uatom>`으로 표현된다. 
 
 그렇다면 체인 A에서 체인 C로 자산이 이동되는데, 중간에 체인 B가 존재하는 다중 홉(multi-hop) 구조에서는 어떻게 토큰이 표현될까? 지나가는 통로를 `port/channel-id/...` 식으로 앞에 연결하면 된다. 예를 들어 체인 B와 연결된 체인 C의 채널이 channel-50이라고 가정한다면, 해당 토큰은 최종적으로 `ibc/<hash of transfer/channel-50/transfer/channel-40/uatom>`으로 표현된다.
 
