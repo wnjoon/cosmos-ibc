@@ -83,7 +83,7 @@ IBC의 경우, 현재는 릴레이어가 데이터 패킷을 전송할 때 발�
 
 ## 이종 플랫폼 기반 IBC 연결 사례 - Hyperledger YUI
 
-Hyperledger YUI는 IBC 프로토콜을 활용하여 퍼블릭 블록체인과 프라이빗(엔터프라이즈) 블록체인 간 상호운용성을 제공하기 위한 프로젝트로, 대표적인 퍼블릭 블록체인 중 이더리움, BNB 체인과 프라이빗 블록체인 Hyperledger Fabric, Hyperleder Besu, Corda 등을 대상으로 토큰 전송, Atomic swap 등의 기능을 통합적으로 제공한다.
+[Hyperledger YUI](https://labs.hyperledger.org/labs/yui.html)는 IBC 프로토콜을 활용하여 퍼블릭 블록체인과 프라이빗(엔터프라이즈) 블록체인 간 상호운용성을 제공하기 위한 프로젝트로, 대표적인 퍼블릭 블록체인 중 이더리움, BNB 체인과 프라이빗 블록체인 Hyperledger Fabric, Hyperleder Besu, Corda 등을 대상으로 토큰 전송, Atomic swap 등의 기능을 통합적으로 제공한다.
 
 
 <br><br>

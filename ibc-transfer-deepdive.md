@@ -17,6 +17,7 @@ IBC에서 토큰을 전송할 때의 절차를 트랜잭션과 메시지를 중�
 
 ##### 1. 트랜잭션 생성 및 서명
 
+
 사용자는 [CLI](https://docs.cosmos.network/v0.50/learn/advanced/cli) 또는 [REST/gRPC](https://docs.cosmos.network/v0.50/learn/advanced/grpc_rest) 인터페이스를 통해 트랜잭션을 생성할 수 있는데, 생성된 트랜잭션은 해당 사용자의 개인 키로 서명되고 네트워크에 broadcast된다. 
 
 ##### 2. Mempool 추가
