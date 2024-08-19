@@ -166,8 +166,8 @@ type Packet struct {
 	TimeoutTimestamp uint64 `protobuf:"varint,8,opt,name=timeout_timestamp,json=timeoutTimestamp,proto3" json:"timeout_timestamp,omitempty"`
 }
 ```
-- SourcePort : 토큰을 전송하는 애플리케이션의 포트 (transfer)
-- SourceChannel :  패킷 전송에 사용할 채널 (위의 그림에서 channel-2)
+- SourcePort : 소스 체인에서 토큰을 전송하는 애플리케이션의 포트 (transfer)
+- SourceChannel :  소스 체인에서 패킷 전송에 사용할 채널 (위의 그림에서 channel-2)
 - DestinationPort : 싱크 체인에서 패킷을 수신할 포트 (transfer)
 - DestinationChannel :  싱크 체인에서 패킷을 수신할 채널 (위의 그림에서 channel-40)
 - Data : 실제로 전송되는 토큰과 관련된 정보(수량, 수신자 주소 등)
